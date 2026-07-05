@@ -201,17 +201,44 @@ fn collect_declarations<'a>(
 
             Statement::ExpressionStatement(expr_stmt) => {
                 // if it's an IIFE, don't treat the whole body as one effect — go inside
+                let mut unwrapped_any = false;
+
                 if let Some(inner_stmts) = iife_body_stmts(&expr_stmt.expression) {
                     if verbose {
                         eprintln!(
-                            "[splitter] {:indent$}→ Unwrapping IIFE ({} stmts)",
+                            "[splitter] {:indent$}→ Unwrapping IIFE callee body ({} stmts)",
                             "",
                             inner_stmts.len(),
                             indent = depth * 2
                         );
                     }
                     collect_declarations(source, inner_stmts, output, depth + 1, verbose);
-                } else {
+                    unwrapped_any = true;
+                }
+
+                // UMD pattern: (function(exportsArg, factory) { ... })(this, function(exports) {
+                //   /* real module body lives here, passed in as an argument, not as the callee */
+                // });
+                // The callee-body branch above only walks the small dispatch wrapper; the
+                // actual declarations are hiding inside a function expression *argument* of
+                // the call. Walk those too.
+                let factory_bodies = umd_factory_arg_stmts(&expr_stmt.expression);
+                if !factory_bodies.is_empty() {
+                    for inner_stmts in factory_bodies {
+                        if verbose {
+                            eprintln!(
+                                "[splitter] {:indent$}→ Unwrapping UMD factory argument ({} stmts)",
+                                "",
+                                inner_stmts.len(),
+                                indent = depth * 2
+                            );
+                        }
+                        collect_declarations(source, inner_stmts, output, depth + 1, verbose);
+                    }
+                    unwrapped_any = true;
+                }
+
+                if !unwrapped_any {
                     let text = span_text(source, stmt.span());
                     output.push(DeclInfo {
                         name: format!("_effect_{}", output.len()),
@@ -370,6 +397,46 @@ fn iife_body_stmts<'a>(expr: &'a Expression<'a>) -> Option<&'a [Statement<'a>]> 
         Expression::CallExpression(call) => fn_stmts_from_callee(&call.callee),
         Expression::ParenthesizedExpression(p) => iife_body_stmts(&p.expression),
         Expression::UnaryExpression(u) => iife_body_stmts(&u.argument),
+        _ => None,
+    }
+}
+
+// UMD/AMD wrappers commonly do:
+//   (function(root, factory) { ... factory-dispatch logic ... })(this, function(exports) {
+//     /* all the real declarations live in here */
+//   });
+// The dispatch function (the callee) is just plumbing; the actual payload is a
+// function expression passed in as one of the *call arguments*. This walks the
+// arguments of an IIFE call (recursing through parens/unary wrappers the same
+// way iife_body_stmts does for the callee) and returns the body statements of
+// every function-expression argument found, so callers don't have to special-case
+// UMD/AMD vs a plain immediately-invoked function.
+fn umd_factory_arg_stmts<'a>(expr: &'a Expression<'a>) -> Vec<&'a [Statement<'a>]> {
+    let call = match unwrap_to_call(expr) {
+        Some(c) => c,
+        None => return Vec::new(),
+    };
+
+    call.arguments
+        .iter()
+        .filter_map(|arg| arg.as_expression())
+        .filter_map(|arg_expr| match arg_expr {
+            Expression::FunctionExpression(fn_expr) => {
+                fn_expr.body.as_ref().map(|b| b.statements.as_slice())
+            }
+            Expression::ArrowFunctionExpression(arrow) => {
+                Some(arrow.body.statements.as_slice())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+fn unwrap_to_call<'a>(expr: &'a Expression<'a>) -> Option<&'a oxc_ast::ast::CallExpression<'a>> {
+    match expr {
+        Expression::CallExpression(call) => Some(call),
+        Expression::ParenthesizedExpression(p) => unwrap_to_call(&p.expression),
+        Expression::UnaryExpression(u) => unwrap_to_call(&u.argument),
         _ => None,
     }
 }
