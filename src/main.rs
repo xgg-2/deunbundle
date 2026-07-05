@@ -31,7 +31,11 @@ fn main() -> Result<()> {
         }
         InputSource::RemoteUrl(url) => fetch::fetch_remote(url, cli.max_size, cli.verbose)?,
     };
-    step.finish_with_message(format!("{} bytes from {}", fetched.source.len(), fetched.origin));
+    step.finish_with_message(format!(
+        "{} bytes from {}",
+        fetched.source.len(),
+        fetched.origin
+    ));
 
     // source map path: if the user gave us a .map file, try to recover original sources
     // and bail out early — no point running the rest of the pipeline
@@ -86,7 +90,11 @@ fn main() -> Result<()> {
         let out_file = out_dir.join("output.js");
         fs::write(&out_file, &pretty)?;
         println!();
-        println!("  {} → {} lines", human_bytes(fetched.source.len()), line_count);
+        println!(
+            "  {} → {} lines",
+            human_bytes(fetched.source.len()),
+            line_count
+        );
         return Ok(());
     }
 
@@ -111,23 +119,45 @@ fn main() -> Result<()> {
     println!();
     println!("  Output → {}", out_dir.display());
     println!();
-    print_tree(out_dir, file_count, split.stats.components, split.stats.functions, split.stats.classes, split.stats.constants)?;
+    print_tree(
+        out_dir,
+        file_count,
+        split.stats.components,
+        split.stats.functions,
+        split.stats.classes,
+        split.stats.constants,
+    )?;
 
     println!();
     println!("  Bundle type : {}", bundle_type);
-    println!("  Input size  : {} → {} lines", human_bytes(fetched.source.len()), line_count);
+    println!(
+        "  Input size  : {} → {} lines",
+        human_bytes(fetched.source.len()),
+        line_count
+    );
     println!("  Files out   : {} files", file_count);
     if !libs.is_empty() {
-        let lib_list: Vec<_> = libs.iter().map(|l| match &l.version_hint {
-            Some(v) => format!("{} v{}", l.name, v),
-            None => l.name.clone(),
-        }).collect();
+        let lib_list: Vec<_> = libs
+            .iter()
+            .map(|l| match &l.version_hint {
+                Some(v) => format!("{} v{}", l.name, v),
+                None => l.name.clone(),
+            })
+            .collect();
         println!("  Libraries   : {}", lib_list.join(", "));
     }
-    if split.stats.components > 0 { println!("  Components  : {}", split.stats.components); }
-    if split.stats.functions > 0  { println!("  Functions   : {}", split.stats.functions); }
-    if split.stats.classes > 0    { println!("  Classes     : {}", split.stats.classes); }
-    if split.stats.modules > 0    { println!("  Modules     : {}", split.stats.modules); }
+    if split.stats.components > 0 {
+        println!("  Components  : {}", split.stats.components);
+    }
+    if split.stats.functions > 0 {
+        println!("  Functions   : {}", split.stats.functions);
+    }
+    if split.stats.classes > 0 {
+        println!("  Classes     : {}", split.stats.classes);
+    }
+    if split.stats.modules > 0 {
+        println!("  Modules     : {}", split.stats.modules);
+    }
     println!();
 
     Ok(())
@@ -165,7 +195,12 @@ fn print_tree(
     for (i, (path, size)) in entries.iter().enumerate() {
         let connector = if i == last { "└──" } else { "├──" };
         let rel = path.strip_prefix(out_dir).unwrap_or(path);
-        println!("  {} {} ({})", connector, rel.display(), human_bytes(*size as usize));
+        println!(
+            "  {} {} ({})",
+            connector,
+            rel.display(),
+            human_bytes(*size as usize)
+        );
     }
     if total > 0 {
         println!();

@@ -15,8 +15,7 @@ pub fn fetch_local(path: &str) -> Result<FetchResult> {
     if !p.is_file() {
         bail!("Path is not a file: {}", path);
     }
-    let source = fs::read_to_string(p)
-        .with_context(|| format!("Failed to read file: {}", path))?;
+    let source = fs::read_to_string(p).with_context(|| format!("Failed to read file: {}", path))?;
     Ok(FetchResult {
         source,
         origin: path.to_string(),
@@ -77,8 +76,7 @@ pub fn fetch_remote(url: &str, max_size: u64, verbose: bool) -> Result<FetchResu
 
     pb.finish_with_message(format!("Downloaded {} bytes", bytes.len()));
 
-    let source = String::from_utf8(bytes.to_vec())
-        .context("Response body is not valid UTF-8")?;
+    let source = String::from_utf8(bytes.to_vec()).context("Response body is not valid UTF-8")?;
 
     let cache_path = cache_locally(url, &source)?;
     if verbose {
@@ -121,7 +119,13 @@ fn cache_locally(url: &str, source: &str) -> Result<String> {
 
     let safe_name: String = url
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '.' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '.' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     let filename = format!("{}.js", &safe_name[..safe_name.len().min(80)]);
     let cache_path = cache_dir.join(&filename);

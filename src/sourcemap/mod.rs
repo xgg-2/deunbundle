@@ -60,7 +60,11 @@ pub fn recover_sources(map: &SourceMap, verbose: bool) -> Result<RecoveredSource
         let full_path = if root.is_empty() {
             source_path.clone()
         } else {
-            format!("{}/{}", root.trim_end_matches('/'), source_path.trim_start_matches('/'))
+            format!(
+                "{}/{}",
+                root.trim_end_matches('/'),
+                source_path.trim_start_matches('/')
+            )
         };
 
         let clean_path = clean_path(&full_path);

@@ -111,7 +111,13 @@ fn build_fingerprint_table() -> HashMap<String, Fingerprint> {
     map.insert(
         "Lodash".to_string(),
         Fingerprint {
-            signatures: vec!["_.debounce", "_.throttle", "_.merge", "_.cloneDeep", "_.isEqual"],
+            signatures: vec![
+                "_.debounce",
+                "_.throttle",
+                "_.merge",
+                "_.cloneDeep",
+                "_.isEqual",
+            ],
             version_patterns: vec!["VERSION=\"", "lodash.version"],
             npm_package: "lodash".to_string(),
         },

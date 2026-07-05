@@ -3,7 +3,7 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::{Argument, Expression, ObjectPropertyKind, PropertyKey, Statement};
 use oxc_codegen::Codegen;
 use oxc_parser::Parser;
-use oxc_span::{GetSpan, Span, SourceType};
+use oxc_span::{GetSpan, SourceType, Span};
 use std::collections::HashMap;
 
 use crate::bundle_detect::BundleType;
@@ -55,7 +55,13 @@ fn split_iife(source: &str, verbose: bool) -> Result<SplitResult> {
     let result = Parser::new(&allocator, source, source_type).parse();
 
     let mut decls: Vec<DeclInfo> = Vec::new();
-    collect_declarations(source, result.program.body.as_slice(), &mut decls, 0, verbose);
+    collect_declarations(
+        source,
+        result.program.body.as_slice(),
+        &mut decls,
+        0,
+        verbose,
+    );
 
     if verbose {
         eprintln!("[splitter] Collected {} declarations", decls.len());
@@ -146,7 +152,11 @@ fn collect_declarations<'a>(
                 let text = span_text(source, stmt.span());
                 let kind = classify_fn_name(&name);
                 if verbose {
-                    eprintln!("[splitter] {:indent$}[{kind:?}] {name}", "", indent = depth * 2);
+                    eprintln!(
+                        "[splitter] {:indent$}[{kind:?}] {name}",
+                        "",
+                        indent = depth * 2
+                    );
                 }
                 output.push(DeclInfo { name, kind, text });
             }
@@ -159,9 +169,17 @@ fn collect_declarations<'a>(
                     .unwrap_or_else(|| format!("_cls_{}", output.len()));
                 let text = span_text(source, stmt.span());
                 if verbose {
-                    eprintln!("[splitter] {:indent$}[Class] {name}", "", indent = depth * 2);
+                    eprintln!(
+                        "[splitter] {:indent$}[Class] {name}",
+                        "",
+                        indent = depth * 2
+                    );
                 }
-                output.push(DeclInfo { name, kind: DeclKind::Class, text });
+                output.push(DeclInfo {
+                    name,
+                    kind: DeclKind::Class,
+                    text,
+                });
             }
 
             Statement::VariableDeclaration(var_decl) => {
@@ -319,7 +337,10 @@ fn split_webpack(source: &str, verbose: bool) -> Result<SplitResult> {
         }
         let code = Codegen::new().build(&result.program).code;
         files.insert("bundle.js".to_string(), code);
-        stats = SplitStats { modules: 1, ..Default::default() };
+        stats = SplitStats {
+            modules: 1,
+            ..Default::default()
+        };
     } else {
         if verbose {
             eprintln!("[splitter] Found {} webpack modules", modules.len());
@@ -333,16 +354,16 @@ fn split_webpack(source: &str, verbose: bool) -> Result<SplitResult> {
         }
         files.insert("index.js".to_string(), index_imports.join("\n") + "\n");
         let n = modules.len();
-        stats = SplitStats { modules: n, ..Default::default() };
+        stats = SplitStats {
+            modules: n,
+            ..Default::default()
+        };
     }
 
     Ok(SplitResult { files, stats })
 }
 
-fn extract_webpack_v4<'a>(
-    source: &str,
-    expr: &'a Expression<'a>,
-) -> Option<Vec<(String, String)>> {
+fn extract_webpack_v4<'a>(source: &str, expr: &'a Expression<'a>) -> Option<Vec<(String, String)>> {
     let call = match expr {
         Expression::CallExpression(c) => c,
         Expression::ParenthesizedExpression(p) => {
@@ -376,8 +397,8 @@ fn extract_webpack_v4<'a>(
         Expression::ArrayExpression(arr) => {
             for (i, elem) in arr.elements.iter().enumerate() {
                 if let Some(e) = elem.as_expression() {
-                    let body = fn_body_text(source, e)
-                        .unwrap_or_else(|| span_text(source, e.span()));
+                    let body =
+                        fn_body_text(source, e).unwrap_or_else(|| span_text(source, e.span()));
                     modules.push((i.to_string(), body));
                 }
             }
@@ -385,7 +406,11 @@ fn extract_webpack_v4<'a>(
         _ => {}
     }
 
-    if modules.is_empty() { None } else { Some(modules) }
+    if modules.is_empty() {
+        None
+    } else {
+        Some(modules)
+    }
 }
 
 // checks whether an expression is an IIFE and returns its body statements.
@@ -478,7 +503,12 @@ fn ident_name_of_binding(pat: &oxc_ast::ast::BindingPattern) -> Option<String> {
 }
 
 fn classify_fn_name(name: &str) -> DeclKind {
-    if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+    if name
+        .chars()
+        .next()
+        .map(|c| c.is_uppercase())
+        .unwrap_or(false)
+    {
         DeclKind::Component
     } else {
         DeclKind::Function
@@ -494,7 +524,17 @@ fn span_text(source: &str, span: Span) -> String {
 fn sanitize_filename(name: &str) -> String {
     let s: String = name
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' || c == '.' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' || c == '.' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
-    if s.is_empty() { "unnamed".to_string() } else { s }
+    if s.is_empty() {
+        "unnamed".to_string()
+    } else {
+        s
+    }
 }
