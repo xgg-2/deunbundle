@@ -1,0 +1,38 @@
+[package]
+name = "deunbundle"
+version = "0.1.0"
+edition = "2021"
+description = "JavaScript/TypeScript deobfuscation and unbundling tool powered by OXC"
+repository = "https://github.com/xgg-2/deunbundle"
+license = "MIT"
+keywords = ["javascript", "deobfuscation", "unbundle", "ast", "oxc"]
+categories = ["command-line-utilities", "development-tools"]
+
+[lib]
+name = "deunbundle"
+path = "src/lib.rs"
+
+[[bin]]
+name = "deunbundle"
+path = "src/main.rs"
+
+[dependencies]
+clap      = { version = "4", features = ["derive"] }
+reqwest   = { version = "0.12", features = ["blocking", "rustls-tls"], default-features = false }
+anyhow    = "1"
+thiserror = "1"
+indicatif = "0.17"
+serde     = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+oxc_allocator = "0.56"
+oxc_parser    = "0.56"
+oxc_codegen   = "0.56"
+oxc_ast       = "0.56"
+oxc_span      = "0.56"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
